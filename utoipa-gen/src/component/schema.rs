@@ -236,7 +236,7 @@ impl<'a> SchemaVariant<'a> {
             Self::Enum(schema) => &schema.schema_as,
             Self::Named(schema) => &schema.schema_as,
             Self::Unnamed(schema) => &schema.schema_as,
-            _ => &None,
+            Self::Unit(schema) => &schema.schema_as,
         }
     }
 
@@ -271,7 +271,10 @@ impl ToTokens for SchemaVariant<'_> {
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
-struct UnitStructVariant(TokenStream);
+struct UnitStructVariant {
+    tokens: TokenStream,
+    schema_as: Option<As>,
+}
 
 impl UnitStructVariant {
     fn new(root: &Root<'_>) -> Result<Self, Diagnostics> {
@@ -282,11 +285,12 @@ impl UnitStructVariant {
         };
 
         let mut features = features::parse_schema_features_with(root.attributes, |input| {
-            Ok(parse_features!(input as Title, Description))
+            Ok(parse_features!(input as Title, Description, As))
         })?
         .unwrap_or_default();
 
         let description = pop_feature!(features => Feature::Description(_) as Option<Description>);
+        let schema_as = pop_feature!(features => Feature::As(_) as Option<As>);
 
         let comment = CommentAttributes::from_attributes(root.attributes);
         let description = description
@@ -297,13 +301,13 @@ impl UnitStructVariant {
         description.to_tokens(&mut tokens);
         tokens.extend(features.to_token_stream());
 
-        Ok(Self(tokens))
+        Ok(Self { tokens, schema_as })
     }
 }
 
 impl ToTokens for UnitStructVariant {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.0.to_tokens(tokens);
+        self.tokens.to_tokens(tokens);
     }
 }
 
