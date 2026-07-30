@@ -1503,6 +1503,37 @@ impl From<Array> for RefOr<Schema> {
     }
 }
 
+/// Set the `description` of a schema built by a `schema_with` function.
+///
+/// `#[schema(schema_with = ...)]` replaces the whole schema object, so the
+/// field's doc comment would otherwise never reach the specification. The
+/// function referenced by the attribute returns an opaque
+/// `impl Into<RefOr<Schema>>`, so the description can only be applied after
+/// the conversion.
+///
+/// A description that the function itself set is replaced. This matches how a
+/// doc comment on a field whose type resolves to a [`Ref`] overrides the
+/// description of the component it refers to.
+pub fn set_description<S: Into<RefOr<Schema>>, D: Into<String>>(
+    schema: S,
+    description: D,
+) -> RefOr<Schema> {
+    let mut schema = schema.into();
+
+    match &mut schema {
+        RefOr::Ref(reference) => reference.description = description.into(),
+        RefOr::T(Schema::Array(array)) => array.description = Some(description.into()),
+        RefOr::T(Schema::Object(object)) => object.description = Some(description.into()),
+        RefOr::T(Schema::OneOf(one_of)) => one_of.description = Some(description.into()),
+        RefOr::T(Schema::AllOf(all_of)) => all_of.description = Some(description.into()),
+        RefOr::T(Schema::AnyOf(any_of)) => any_of.description = Some(description.into()),
+        // `Schema` is `#[non_exhaustive]`, but this crate defines it, so the
+        // match stays exhaustive. A new variant must set the description here.
+    }
+
+    schema
+}
+
 fn omit_decimal_zero<S>(
     maybe_value: &Option<crate::utoipa::Number>,
     serializer: S,

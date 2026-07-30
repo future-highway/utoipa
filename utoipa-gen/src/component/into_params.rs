@@ -372,17 +372,18 @@ impl Param {
             tokens.extend(quote! { .deprecated(Some(#deprecated)) });
         }
 
+        // The description belongs to the parameter rather than to its schema,
+        // so `schema_with` does not replace it.
+        let description = CommentAttributes::from_attributes(&field.attrs).as_formatted_string();
+        if !description.is_empty() {
+            tokens.extend(quote! { .description(Some(#description))})
+        }
+
         let schema_with = pop_feature!(param_features => Feature::SchemaWith(_));
         if let Some(schema_with) = schema_with {
             let schema_with = crate::as_tokens_or_diagnostics!(&schema_with);
             tokens.extend(quote! { .schema(Some(#schema_with)).build() });
         } else {
-            let description =
-                CommentAttributes::from_attributes(&field.attrs).as_formatted_string();
-            if !description.is_empty() {
-                tokens.extend(quote! { .description(Some(#description))})
-            }
-
             let value_type = pop_feature!(param_features => Feature::ValueType(_) as Option<features::attributes::ValueType>);
             let component = value_type
                 .as_ref()

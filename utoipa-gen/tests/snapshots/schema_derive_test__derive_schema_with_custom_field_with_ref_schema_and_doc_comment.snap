@@ -1,0 +1,16 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: value
+---
+{
+  "properties": {
+    "id": {
+      "$ref": "#/components/schemas/Other",
+      "description": "This is the description of the field."
+    }
+  },
+  "required": [
+    "id"
+  ],
+  "type": "object"
+}

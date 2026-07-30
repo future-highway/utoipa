@@ -2547,6 +2547,61 @@ fn derive_schema_with_custom_field_with_schema() {
 }
 
 #[test]
+fn derive_schema_with_custom_field_with_schema_and_doc_comment() {
+    fn custom_type() -> Object {
+        ObjectBuilder::new()
+            .schema_type(utoipa::openapi::Type::String)
+            .build()
+    }
+    let value = api_doc! {
+        struct Value {
+            /// This is the description of the field.
+            #[schema(schema_with = custom_type)]
+            id: String,
+        }
+    };
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_schema_with_custom_field_with_ref_schema_and_doc_comment() {
+    fn custom_type() -> utoipa::openapi::RefOr<utoipa::openapi::Schema> {
+        utoipa::openapi::schema::RefBuilder::new()
+            .ref_location_from_schema_name("Other")
+            .into()
+    }
+    let value = api_doc! {
+        struct Value {
+            /// This is the description of the field.
+            #[schema(schema_with = custom_type)]
+            id: String,
+        }
+    };
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_schema_with_custom_field_with_schema_doc_comment_overrides_description() {
+    fn custom_type() -> Object {
+        ObjectBuilder::new()
+            .schema_type(utoipa::openapi::Type::String)
+            .description(Some("this is the description of the function"))
+            .build()
+    }
+    let value = api_doc! {
+        struct Value {
+            /// This is the description of the field.
+            #[schema(schema_with = custom_type)]
+            id: String,
+        }
+    };
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
 fn derive_unit_type() {
     let data = api_doc! {
         struct Data {

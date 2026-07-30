@@ -487,7 +487,7 @@ impl NamedStructSchema {
                 let property_schema = as_tokens_or_diagnostics!(property);
 
                 match property {
-                    Property::Schema(_) | Property::SchemaWith(_) => {
+                    Property::Schema(_) | Property::SchemaWith(..) => {
                         flattened_tokens.extend(quote! { .item(#property_schema) })
                     }
                     Property::FlattenedMap(_) => {
@@ -647,7 +647,16 @@ impl NamedStructSchema {
 
         Ok(Some(NamedStructFieldOptions {
             property: if let Some(schema_with) = schema_with {
-                Property::SchemaWith(schema_with)
+                // `schema_with` replaces the whole schema object, so the doc
+                // comment is applied to what the function builds. Without
+                // this, the comment never reaches the specification.
+                let description = if comments.is_empty() {
+                    None
+                } else {
+                    Some(comments.as_formatted_string())
+                };
+
+                Property::SchemaWith(schema_with, description)
             } else {
                 let props = super::ComponentSchemaProps {
                     type_tree,
@@ -984,7 +993,9 @@ fn rename_enum_variant<'s>(
 #[cfg_attr(feature = "debug", derive(Debug))]
 enum Property {
     Schema(ComponentSchema),
-    SchemaWith(Feature),
+    /// A schema built by a `schema_with` function, with the description that
+    /// the doc comment of the field provides.
+    SchemaWith(Feature, Option<String>),
     FlattenedMap(FlattenedMapSchema),
 }
 
@@ -993,7 +1004,16 @@ impl ToTokensDiagnostics for Property {
         match self {
             Self::Schema(schema) => schema.to_tokens(tokens),
             Self::FlattenedMap(schema) => schema.to_tokens(tokens)?,
-            Self::SchemaWith(schema_with) => schema_with.to_tokens(tokens)?,
+            Self::SchemaWith(schema_with, description) => {
+                let schema_with = crate::as_tokens_or_diagnostics!(schema_with);
+
+                match description {
+                    Some(description) => tokens.extend(quote! {
+                        utoipa::openapi::schema::set_description(#schema_with, #description)
+                    }),
+                    None => tokens.extend(schema_with),
+                }
+            }
         }
         Ok(())
     }
